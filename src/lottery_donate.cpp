@@ -24,7 +24,7 @@ void withdraw_eos(name from, name to, uint64_t quantity, std::string memo) {
         .send();
 }
 
-uint8_t get_random_number() {
+uint8_t get_random_number() {  // Do not use this random function for important logic.
     capi_checksum256 hash;
     auto tapos = tapos_block_prefix() * tapos_block_num();
     const char* seed = reinterpret_cast<const char*>(&tapos);
@@ -33,18 +33,19 @@ uint8_t get_random_number() {
     return r;
 }
 
-#define EOSIO_DISPATCH_EX(TYPE, MEMBERS)                                                         \
-    extern "C" {                                                                                 \
-    void apply(uint64_t receiver, uint64_t code, uint64_t action) {                              \
-        if (action == "onerror"_n.value) {                                                       \
-            eosio_assert(code == "eosio"_n.value,                                                \
-                         "onerror action's are only valid from the \"eosio\" system account");   \
-        }                                                                                        \
-        if (code == receiver || code == "eosio.token"_n.value && action == "transfer"_n.value) { \
-            switch (action) { EOSIO_DISPATCH_HELPER(TYPE, MEMBERS) }                             \
-            /* does not allow destructor of thiscontract to run: eosio_exit(0); */               \
-        }                                                                                        \
-    }                                                                                            \
+#define EOSIO_DISPATCH_EX(TYPE, MEMBERS)                                                       \
+    extern "C" {                                                                               \
+    void apply(uint64_t receiver, uint64_t code, uint64_t action) {                            \
+        if (action == "onerror"_n.value) {                                                     \
+            eosio_assert(code == "eosio"_n.value,                                              \
+                         "onerror action's are only valid from the \"eosio\" system account"); \
+        }                                                                                      \
+        if (code == receiver && action != "transfer"_n.value ||                                \
+            code == "eosio.token"_n.value && action == "transfer"_n.value) {                   \
+            switch (action) { EOSIO_DISPATCH_HELPER(TYPE, MEMBERS) }                           \
+            /* does not allow destructor of thiscontract to run: eosio_exit(0); */             \
+        }                                                                                      \
+    }                                                                                          \
     }
 
 EOSIO_DISPATCH_EX(lottery_donate, (join)(refund)(transfer))
