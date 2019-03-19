@@ -1,5 +1,4 @@
 #include <eosiolib/asset.hpp>
-#include <eosiolib/crypto.hpp>
 #include <eosiolib/eosio.hpp>
 #include <eosiolib/transaction.hpp>
 #include <numeric>
@@ -14,9 +13,10 @@ CONTRACT lottery_donate : public contract {
           _games(receiver, receiver.value),
           _histories(receiver, receiver.value) {}
 
-    ACTION join(name user, uint64_t amount);
-    ACTION refund(name user, uint64_t amount);
     ACTION transfer(name from, name to);
+
+   private:
+    using transfer_action = action_wrapper<"transfer"_n, &lottery_donate::transfer>;
 
     TABLE balance {
         uint64_t num;
@@ -42,11 +42,6 @@ CONTRACT lottery_donate : public contract {
     typedef eosio::multi_index<"games"_n, game> games;
     typedef eosio::multi_index<"histories"_n, history> histories;
 
-    using join_action = action_wrapper<"join"_n, &lottery_donate::join>;
-    using refund_action = action_wrapper<"refund"_n, &lottery_donate::refund>;
-    using transfer_action = action_wrapper<"transfer"_n, &lottery_donate::transfer>;
-
-   private:
     balances _balances;
     games _games;
     histories _histories;

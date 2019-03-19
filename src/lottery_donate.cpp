@@ -1,20 +1,26 @@
 #include <lottery_donate.hpp>
 
-ACTION lottery_donate::join(name user, uint64_t amount) {
-    require_auth(user);
-}
-
-ACTION lottery_donate::refund(name user, uint64_t amount) {
-    require_auth(user);
-}
-
 ACTION lottery_donate::transfer(name from, name to) {
     auto transfer_data = unpack_action_data<st_transfer>();
+    int64_t amount = transfer_data.quantity.amount;
 
-    if (transfer_data.from == _self) {  // withdraw
-        print("withdraw");
+    if (transfer_data.from == _self) {       // withdraw
     } else if (transfer_data.to == _self) {  // deposit
-        print("deposit");
+        if (amount == 1000 || amount == 10000 || amount == 100000 || amount == 1000000) {
+            auto itr = _games.find(amount);
+            if (itr != _games.end()) {
+                _games.modify(itr, _self, [](auto& g) { g.count += 1; });
+            } else {
+                _games.emplace(_self, [&](auto& g) {
+                    g.amount = amount;
+                    g.count = 1;
+                });
+            }
+        } else {
+            char msg[256];
+            snprintf(msg, 256, "%.4f EOS is an unacceptable value as an input.", amount / 10000.0);
+            eosio_assert(false, msg);
+        }
     }
 }
 
@@ -48,4 +54,4 @@ uint8_t get_random_number() {  // Do not use this random function for important 
     }                                                                                          \
     }
 
-EOSIO_DISPATCH_EX(lottery_donate, (join)(refund)(transfer))
+EOSIO_DISPATCH_EX(lottery_donate, (transfer))
