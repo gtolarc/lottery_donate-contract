@@ -48,7 +48,7 @@ ACTION lottery_donate::transfer(name from, name to) {
                 if (existing_balance != _balances.end()) {
                     withdraw_eos(_self, existing_balance->holder, 4.9 * amount,
                                  "Congratulations! You won the lottery.");
-                    withdraw_eos(_self, existing_balance->holder, 4.9 * amount, "Donations!");
+                    withdraw_eos(_self, "humaneloveio"_n, 4.9 * amount, "Donations!");
 
                     for (uint8_t i = 1; i <= 10; i++) {
                         auto existing = _balances.find(i + amount);
