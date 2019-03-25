@@ -1,23 +1,23 @@
-#include <eosiolib/asset.hpp>
-#include <eosiolib/eosio.hpp>
-#include <eosiolib/transaction.hpp>
-#include <numeric>
+#include <eosio/asset.hpp>
+#include <eosio/crypto.hpp>
+#include <eosio/eosio.hpp>
+#include <eosio/transaction.hpp>
+
+#define NOTIFY(action) [[eosio::on_notify(action)]] void
 
 using namespace eosio;
 
 CONTRACT lottery_donate : public contract {
    public:
-    lottery_donate(name receiver, name code, datastream<const char*> ds)
-        : contract(receiver, code, ds),
-          _balances(receiver, receiver.value),
-          _games(receiver, receiver.value),
-          _histories(receiver, receiver.value) {}
+    lottery_donate(name self, name first_receiver, datastream<const char*> ds)
+        : contract(self, first_receiver, ds),
+          _balances(self, self.value),
+          _games(self, self.value),
+          _histories(self, self.value) {}
 
-    ACTION transfer(name from, name to);
+    NOTIFY("eosio.token::transfer") transfer(name from, name to, asset quantity, std::string memo);
 
    private:
-    using transfer_action = action_wrapper<"transfer"_n, &lottery_donate::transfer>;
-
     TABLE balance {
         uint64_t num;
         name holder;

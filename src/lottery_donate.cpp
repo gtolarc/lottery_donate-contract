@@ -1,21 +1,22 @@
 #include <lottery_donate.hpp>
 
-void withdraw_eos(name from, name to, uint64_t quantity, std::string memo) {
+void transfer_eos(name from, name to, uint64_t quantity, std::string memo) {
     action(permission_level{from, "active"_n}, "eosio.token"_n, "transfer"_n,
            std::make_tuple(from, to, asset(quantity, symbol("EOS", 4)), memo))
         .send();
 }
 
 uint8_t get_random_number() {  // Do not use this random function for important logic.
-    capi_checksum256 hash;
     auto tapos = tapos_block_prefix() * tapos_block_num();
     const char* seed = reinterpret_cast<const char*>(&tapos);
-    sha256(seed, sizeof(seed), &hash);
-    uint8_t r = std::accumulate(hash.hash, hash.hash + 32, 0) % 10 + 1;
+    auto hash = sha256(seed, sizeof(seed)).data();
+    uint8_t r = (hash[0] + hash[1]) % 10 + 1;
     return r;
 }
 
-ACTION lottery_donate::transfer(name from, name to) {
+NOTIFY("eosio.token::transfer") lottery_donate::transfer(name from, name to, asset quantity, std::string memo) {
+    check(_first_receiver == "eosio.token"_n, "should be eosio.token");
+
     auto transfer_data = unpack_action_data<st_transfer>();
     uint64_t amount = transfer_data.quantity.amount;
 
@@ -46,9 +47,9 @@ ACTION lottery_donate::transfer(name from, name to) {
                 uint64_t pos = random_number + amount;
                 auto existing_balance = _balances.find(pos);
                 if (existing_balance != _balances.end()) {
-                    withdraw_eos(_self, existing_balance->holder, 4.9 * amount,
+                    transfer_eos(_self, existing_balance->holder, 4.9 * amount,
                                  "Congratulations! You won the lottery.");
-                    withdraw_eos(_self, "humaneloveio"_n, 4.9 * amount, "Donations!");
+                    transfer_eos(_self, "humaneloveio"_n, 4.9 * amount, "Donations!");
 
                     for (uint8_t i = 1; i <= 10; i++) {
                         auto existing = _balances.find(i + amount);
@@ -66,29 +67,14 @@ ACTION lottery_donate::transfer(name from, name to) {
                         h.holder = existing_balance->holder;
                         h.count = random_number;
                     });
+                } else {
+                    check(false, "could not find the winner");
                 }
             }
         } else {
             char msg[256];
-            snprintf(msg, 256, "%.4f EOS is an unacceptable value as an input.", amount / 10000.0);
-            eosio_assert(false, msg);
+            snprintf(msg, 256, "%.4f EOS is an unacceptable value as an input", amount / 10000.0);
+            check(false, msg);
         }
     }
 }
-
-#define EOSIO_DISPATCH_EX(TYPE, MEMBERS)                                                       \
-    extern "C" {                                                                               \
-    void apply(uint64_t receiver, uint64_t code, uint64_t action) {                            \
-        if (action == "onerror"_n.value) {                                                     \
-            eosio_assert(code == "eosio"_n.value,                                              \
-                         "onerror action's are only valid from the \"eosio\" system account"); \
-        }                                                                                      \
-        if (code == receiver && action != "transfer"_n.value ||                                \
-            code == "eosio.token"_n.value && action == "transfer"_n.value) {                   \
-            switch (action) { EOSIO_DISPATCH_HELPER(TYPE, MEMBERS) }                           \
-            /* does not allow destructor of thiscontract to run: eosio_exit(0); */             \
-        }                                                                                      \
-    }                                                                                          \
-    }
-
-EOSIO_DISPATCH_EX(lottery_donate, (transfer))
